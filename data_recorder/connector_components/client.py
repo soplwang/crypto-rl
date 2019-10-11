@@ -10,7 +10,7 @@ from configurations.configs import MAX_RECONNECTION_ATTEMPTS, COINBASE_ENDPOINT,
     BITFINEX_ENDPOINT
 
 
-class Client(Thread):
+class Client(object):
 
     def __init__(self, ccy, exchange):
         """
@@ -18,7 +18,6 @@ class Client(Thread):
         :param ccy: currency symbol
         :param exchange: 'bitfinex' or 'coinbase'
         """
-        super(Client, self).__init__(name=ccy, daemon=True)
         self.sym = ccy
         self.exchange = exchange
         self.ws = None
@@ -123,7 +122,7 @@ class Client(Thread):
 
     def run(self):
         """
-        Thread to override in Coinbase or Bitfinex implementation class
+        Main loop to override in Coinbase or Bitfinex implementation class
         :return:
         """
         pass

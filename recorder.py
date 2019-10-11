@@ -1,7 +1,7 @@
 from data_recorder.bitfinex_connector.bitfinex_client import BitfinexClient
 from data_recorder.coinbase_connector.coinbase_client import CoinbaseClient
 from configurations.configs import SNAPSHOT_RATE, BASKET
-from threading import Timer
+from threading import Thread, Timer
 from datetime import datetime as dt
 from multiprocessing import Process
 import time
@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(message)s')
 logger = logging.getLogger('recorder')
 
 
-class Recorder(Process):
+class Recorder(object):
 
     def __init__(self, symbols):
         """
@@ -22,16 +22,14 @@ class Recorder(Process):
         :param symbols: basket of securities to record...
                         Example: symbols = [('BTC-USD, 'tBTCUSD')]
         """
-        super(Recorder, self).__init__()
         self.symbols = symbols
         self.timer_frequency = SNAPSHOT_RATE
-        self.workers = dict()
+        self.clients = dict()
         self.current_time = dt.now()
-        self.daemon = False
 
     def run(self):
         """
-        New process created to instantiate limit order books for
+        Main loop to instantiate limit order books for
             (1) Coinbase Pro, and
             (2) Bitfinex.
         Connections made to each exchange are made asynchronously thanks to asyncio.
@@ -39,23 +37,25 @@ class Recorder(Process):
         """
         coinbase, bitfinex = self.symbols
 
-        self.workers[coinbase] = CoinbaseClient(coinbase)
-        self.workers[bitfinex] = BitfinexClient(bitfinex)
+        self.clients[coinbase] = CoinbaseClient(coinbase)
+        self.clients[bitfinex] = BitfinexClient(bitfinex)
 
-        self.workers[coinbase].start(), self.workers[bitfinex].start()
+        threads = [Thread(target=lambda: self.clients[sym].run(), name=sym, daemon=True)
+                   for sym in [coinbase, bitfinex]]
+        [thread.start() for thread in threads]
 
         Timer(5.0, self.timer_worker,
-              args=(self.workers[coinbase], self.workers[bitfinex],)).start()
+              args=(self.clients[coinbase], self.clients[bitfinex],)).start()
 
-        tasks = asyncio.gather(*[self.workers[sym].subscribe()
-                                 for sym in self.workers.keys()])
+        tasks = asyncio.gather(*[self.clients[sym].subscribe()
+                                 for sym in self.clients.keys()])
         loop = asyncio.get_event_loop()
-        print('Recorder: Gathered %i tasks' % len(self.workers.keys()))
+        print('Recorder: Gathered %i tasks' % len(self.clients.keys()))
 
         try:
             loop.run_until_complete(tasks)
             loop.close()
-            [self.workers[sym].join() for sym in self.workers.keys()]
+            [thread.join() for thread in threads]
             logger.info('Recorder: loop closed for %s and %s.' %
                         (coinbase, bitfinex))
 
@@ -63,7 +63,7 @@ class Recorder(Process):
             logger.info("Recorder: Caught keyboard interrupt. \n%s" % e)
             tasks.cancel()
             loop.close()
-            [self.workers[sym].join() for sym in self.workers.keys()]
+            [thread.join() for thread in threads]
 
         finally:
             loop.close()
@@ -109,8 +109,10 @@ class Recorder(Process):
 
 def main():
     logger.info('Starting recorder with basket = {}'.format(BASKET))
+
     for coinbase, bitfinex in BASKET:
-        Recorder((coinbase, bitfinex)).start()
+        p = Process(target=lambda: Recorder((coinbase, bitfinex)).run())
+        p.start()
         logger.info('Process started up for %s' % coinbase)
         time.sleep(9)
 

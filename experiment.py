@@ -128,7 +128,7 @@ def main(kwargs):
     logger.info('Experiment creating agent with kwargs: {}'.format(kwargs))
     agent = Agent(**kwargs)
     logger.info('Agent created. {}'.format(agent))
-    agent.start()
+    agent.run()
 
 
 if __name__ == '__main__':

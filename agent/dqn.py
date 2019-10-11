@@ -117,7 +117,7 @@ class Agent(object):
         print(model.summary())
         return model
 
-    def start(self):
+    def run(self):
         """
         Entry point for agent training and testing
         :return: (void)

@@ -19,3 +19,7 @@ agent/a2c_weights/*
 
 *.ipynb
 .ipynb_checkpoints
+
+__pycache__
+
+.vscode
