@@ -1,4 +1,5 @@
 import asyncio
+from threading import Thread
 from data_recorder.coinbase_connector.coinbase_client import CoinbaseClient
 
 
@@ -15,7 +16,10 @@ if __name__ == "__main__":
     print('Initializing...%s' % symbols)
     for sym in symbols:
         p[sym] = CoinbaseClient(sym)
-        p[sym].start()
+
+    threads = [Thread(target=lambda: p[sym].run(), name=sym, daemon=True)
+                for sym in symbols]
+    [thread.start() for thread in threads]
 
     tasks = asyncio.gather(*[(p[sym].subscribe()) for sym in symbols])
     print('Gathered %i tasks' % len(symbols))
@@ -24,19 +28,15 @@ if __name__ == "__main__":
         loop.run_until_complete(tasks)
         print('TASK are complete for {}'.format(symbols))
         loop.close()
-        for sym in symbols:
-            p[sym].join()
-            print('Closing [%s]' % p[sym].name)
+        [thread.join() for thread in threads]
         print('loop closed.')
 
     except KeyboardInterrupt as e:
         print("Caught keyboard interrupt. Canceling tasks...")
         tasks.cancel()
         loop.close()
-        for sym in symbols:
-            p[sym].join()
-            print('Closing [%s]' % p[sym].name)
-
+        [thread.join() for thread in threads]
+        
     finally:
         loop.close()
         print('\nFinally done.')
