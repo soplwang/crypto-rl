@@ -40,8 +40,8 @@ class Recorder(object):
         self.clients[coinbase] = CoinbaseClient(coinbase)
         self.clients[bitfinex] = BitfinexClient(bitfinex)
 
-        threads = [Thread(target=lambda r: r.run(),
-                            args=(self.clients[sym],),
+        threads = [Thread(target=lambda sym: self.clients[sym].run(),
+                            args=(sym,),
                             name=sym, daemon=True) for sym in [coinbase, bitfinex]]
         [thread.start() for thread in threads]
 
@@ -112,7 +112,8 @@ def main():
     logger.info('Starting recorder with basket = {}'.format(BASKET))
 
     for coinbase, bitfinex in BASKET:
-        p = Process(target=lambda sym: Recorder(sym).run(), args=((coinbase, bitfinex),))
+        p = Process(target=lambda sym: Recorder(sym).run(),
+                    args=((coinbase, bitfinex),))
         p.start()
         logger.info('Process started up for %s' % coinbase)
         time.sleep(9)

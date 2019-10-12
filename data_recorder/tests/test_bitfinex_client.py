@@ -17,8 +17,8 @@ if __name__ == "__main__":
     for sym in symbols:
         p[sym] = BitfinexClient(sym)
 
-    threads = [Thread(target=lambda r: r.run(),
-                        args=(p[sym],),
+    threads = [Thread(target=lambda sym: p[sym].run(),
+                        args=(sym,),
                         name=sym, daemon=True) for sym in symbols]
     [thread.start() for thread in threads]
 
