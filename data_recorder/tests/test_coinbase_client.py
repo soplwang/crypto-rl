@@ -17,8 +17,9 @@ if __name__ == "__main__":
     for sym in symbols:
         p[sym] = CoinbaseClient(sym)
 
-    threads = [Thread(target=lambda: p[sym].run(), name=sym, daemon=True)
-                for sym in symbols]
+    threads = [Thread(target=lambda r: r.run(),
+                        args=(p[sym],),
+                        name=sym, daemon=True) for sym in symbols]
     [thread.start() for thread in threads]
 
     tasks = asyncio.gather(*[(p[sym].subscribe()) for sym in symbols])
